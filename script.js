@@ -321,7 +321,7 @@ importFileInput.addEventListener('change', (event) => {
             alert('Errore durante l\'importazione del file: ' + error.message);
         }
     };
-    reader.readAsText(file);
+    reader.readAsText(file); 
 });
 
 
