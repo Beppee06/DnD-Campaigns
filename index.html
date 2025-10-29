@@ -55,17 +55,18 @@
 
         // Firebase Configuration
         const firebaseConfig = {
-            apiKey: "YOUR_API_KEY", // SOSTITUISCI CON LA TUA CHIAVE
+            apiKey: "AIzaSyCkTEfOd8TgMBlmuOJrv238pwvABMjTsE8",
             authDomain: "dnd-campaign-bd8a6.firebaseapp.com",
             databaseURL: "https://dnd-campaign-bd8a6-default-rtdb.europe-west1.firebasedatabase.app",
             projectId: "dnd-campaign-bd8a6",
-            storageBucket: "dnd-campaign-bd8a6.appspot.com",
-            messagingSenderId: "YOUR_MESSAGING_SENDER_ID", // SOSTITUISCI
-            appId: "YOUR_APP_ID" // SOSTITUISCI
+            storageBucket: "dnd-campaign-bd8a6.firebasestorage.app",
+            messagingSenderId: "913430089577",
+            appId: "G-SCJ570LZQG" // SOSTITUISCI
         };
 
         // Initialize Firebase
         const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
         window.auth = getAuth(app); // Rendi auth globale accessibile da script.js
         window.database = getDatabase(app); // Rendi database globale accessibile da script.js
         window.firebaseFunctions = { // Funzioni Firebase che useremo in script.js
