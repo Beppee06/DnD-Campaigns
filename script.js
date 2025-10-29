@@ -5,6 +5,7 @@ const newCampaignDiv = document.getElementById('newCampaignDiv');
 const addNewCampaignButton = document.getElementById('addNewCampaignButton');
 const saveNewCampaignButton = document.getElementById('saveNewCampaignButton');
 const newCampaignName = document.getElementById('newCampaignName');
+const cancelButtonNewCampaign = document.getElementById('cancelButtonNewCampaign');
 const campaignList = document.getElementById('campaignList'); // Assicurati di avere <div id="campaignList"></div> nel tuo HTML
 
 // Variabile per i dati, inizializzata a vuoto e popolata da IndexedDB
@@ -146,6 +147,10 @@ addNewCampaignButton.addEventListener('click', () => {
     newCampaignName.value = '';
     newCampaignName.focus();
 });
+
+cancelButtonNewCampaign.addEventListener('click', () => {
+    newCampaignDiv.style.display = 'none';
+})
 
 saveNewCampaignButton.addEventListener('click', async () => {
     const newName = newCampaignName.value.trim();
