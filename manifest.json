@@ -1,0 +1,21 @@
+{
+	"name": "D&D Campaign Tracker",
+	"short_name": "DnD Tracker",
+	"description": "Keep track of your Dungeons & Dragons campaigns.",
+	"start_url": "/index.html",
+	"display": "standalone",
+	"background_color": "#282c34",
+	"theme_color": "#61dafb",
+	"icons": [
+		{
+			"src": "/icons/icon-192x192.png",
+			"sizes": "192x192",
+			"type": "image/png"
+		},
+		{
+			"src": "/icons/icon-512x512.png",
+			"sizes": "512x512",
+			"type": "image/png"
+		}
+	]
+}
