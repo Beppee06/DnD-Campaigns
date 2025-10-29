@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D&D Campaign Tracker</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="/manifest.json">
+</head>
+<body>
+    <header>
+        <h1>D&D Campaign Tracker</h1>
+    </header>
+
+    <div id="campaignsDiv">
+        <div class="db-actions">
+            <button id="exportDbButton">Esporta Database</button>
+            <input type="file" id="importFileInput" accept=".json" style="display: none;">
+            <button id="importDbButton">Importa Database</button>
+        </div>
+
+        <button id="addNewCampaignButton">Add new campaign</button>
+        <div id="newCampaignDiv">
+            <label>Name</label><br />
+            <input type="text" id="newCampaignName" />
+            <button id="saveNewCampaignButton">Save</button>
+        </div>
+
+        <div id="campaignList">
+            <!-- Qui verranno visualizzate le campagne -->
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
