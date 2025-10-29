@@ -179,7 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Questo va in un file separato (es. service-worker.js) e registrato qui:
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/service-worker.js') // Assicurati che questo percorso sia corretto
+        navigator.serviceWorker.register('/DnD-Campaigns/service-worker.js') // Assicurati che questo percorso sia corretto
             .then(registration => {
                 console.log('ServiceWorker registrato con successo:', registration);
             })
