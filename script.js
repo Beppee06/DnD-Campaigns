@@ -1,125 +1,163 @@
-// script.js
-// Riferimenti agli elementi HTML
+// Riferimenti agli elementi HTML (vecchi e nuovi)
 const campaignsDiv = document.getElementById('campaignsDiv');
 const newCampaignDiv = document.getElementById('newCampaignDiv');
 const addNewCampaignButton = document.getElementById('addNewCampaignButton');
 const saveNewCampaignButton = document.getElementById('saveNewCampaignButton');
 const newCampaignName = document.getElementById('newCampaignName');
 const cancelButtonNewCampaign = document.getElementById('cancelButtonNewCampaign');
-const campaignList = document.getElementById('campaignList'); // Assicurati di avere <div id="campaignList"></div> nel tuo HTML
+const campaignList = document.getElementById('campaignList');
 
-// Variabile per i dati, inizializzata a vuoto e popolata da IndexedDB
-let dbData = { "campaigns": [] };
+// Elementi per l'autenticazione
+const authDiv = document.getElementById('authDiv');
+const authStatus = document.getElementById('authStatus');
+const authInputs = document.getElementById('authInputs'); // Il div che contiene input e bottoni login/signup
+const emailInput = document.getElementById('emailInput');
+const passwordInput = document.getElementById('passwordInput');
+const loginButton = document.getElementById('loginButton');
+const signupButton = document.getElementById('signupButton');
+const logoutButton = document.getElementById('logoutButton');
 
-// --- Costanti per IndexedDB ---
-const DB_NAME = 'DndCampaignTrackerDB';
-const DB_VERSION = 1;
-const STORE_NAME = 'campaigns'; // Lo store (tabella) per le tue campagne
+let currentUser = null; // Per tenere traccia dell'utente loggato
+let dbData = { "campaigns": [] }; // I dati verranno caricati da Firebase
 
-let db; // La variabile per il database IndexedDB
+// --- Costanti per IndexedDB (NON USEREMO PIÙ, MA LE LASCIAMO COMMENTATE PER CONFRONTO) ---
+// const DB_NAME = 'DndCampaignTrackerDB';
+// const DB_VERSION = 1;
+// const STORE_NAME = 'campaigns';
 
-// --- Funzioni per IndexedDB ---
+// --- Gestione Autenticazione Firebase ---
 
-function openDb() {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, DB_VERSION);
+// onAuthStateChanged viene fornito da window.firebaseFunctions
+window.firebaseFunctions.onAuthStateChanged(window.auth, (user) => {
+    if (user) {
+        currentUser = user;
+        authStatus.textContent = `Loggato come: ${user.email}`;
+        authInputs.style.display = 'none'; // Nasconde input e bottoni login/signup
+        logoutButton.style.display = 'inline-block';
+        campaignsDiv.style.display = 'block'; // Mostra l'UI delle campagne
+        loadTheCampaignsUI(); // Carica le campagne dell'utente loggato
+    } else {
+        currentUser = null;
+        authStatus.textContent = 'Non loggato';
+        authInputs.style.display = 'block'; // Mostra input e bottoni login/signup
+        logoutButton.style.display = 'none';
+        campaignsDiv.style.display = 'none'; // Nascondi l'UI delle campagne
+        campaignList.innerHTML = '<p>Effettua il login per vedere le tue campagne.</p>';
+        dbData.campaigns = []; // Pulisci i dati locali se l'utente si è sloggato
+    }
+});
 
-        request.onerror = (event) => {
-            console.error('Errore nell\'apertura del database:', event.target.error);
-            reject(event.target.error);
-        };
+loginButton.addEventListener('click', async () => {
+    const email = emailInput.value;
+    const password = passwordInput.value;
+    try {
+        // signInWithEmailAndPassword viene fornito da window.firebaseFunctions
+        await window.firebaseFunctions.signInWithEmailAndPassword(window.auth, email, password);
+        console.log('Login avvenuto con successo!');
+    } catch (error) {
+        console.error('Errore login:', error.message);
+        alert('Errore login: ' + error.message);
+    }
+});
 
-        request.onupgradeneeded = (event) => {
-            db = event.target.result;
-            // Crea l'object store (simile a una tabella) se non esiste
-            if (!db.objectStoreNames.contains(STORE_NAME)) {
-                db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
-                console.log('Object store "campaigns" creato.');
-            }
-        };
+signupButton.addEventListener('click', async () => {
+    const email = emailInput.value;
+    const password = passwordInput.value;
+    try {
+        // createUserWithEmailAndPassword viene fornito da window.firebaseFunctions
+        await window.firebaseFunctions.createUserWithEmailAndPassword(window.auth, email, password);
+        console.log('Registrazione avvenuta con successo!');
+    } catch (error) {
+        console.error('Errore registrazione:', error.message);
+        alert('Errore registrazione: ' + error.message);
+    }
+});
 
-        request.onsuccess = (event) => {
-            db = event.target.result;
-            console.log('Database IndexedDB aperto con successo.');
-            resolve(db);
-        };
-    });
-}
+logoutButton.addEventListener('click', async () => {
+    try {
+        // signOut viene fornito da window.firebaseFunctions
+        await window.firebaseFunctions.signOut(window.auth);
+        console.log('Logout avvenuto con successo!');
+    } catch (error) {
+        console.error('Errore logout:', error.message);
+        alert('Errore logout: ' + error.message);
+    }
+});
 
-async function loadCampaignsFromDb() {
-    await openDb(); // Assicurati che il DB sia aperto
 
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction([STORE_NAME], 'readonly');
-        const objectStore = transaction.objectStore(STORE_NAME);
-        const request = objectStore.getAll(); // Ottieni tutti gli oggetti dallo store
+// --- Funzioni per Firebase Realtime Database ---
 
-        request.onerror = (event) => {
-            console.error('Errore nel caricamento delle campagne:', event.target.error);
-            dbData.campaigns = []; // Inizializza a vuoto in caso di errore
-            resolve(dbData.campaigns);
-        };
+// Sostituisce la vecchia openDb (non più necessaria per Firebase)
+// e loadCampaignsFromDb (ora usa Firebase)
+async function loadCampaignsFromDbFirebase() {
+    if (!currentUser) {
+        console.log("Nessun utente loggato, impossibile caricare campagne.");
+        campaignList.innerHTML = '<p>Effettua il login per vedere le tue campagne.</p>';
+        return;
+    }
 
-        request.onsuccess = (event) => {
-            dbData.campaigns = event.target.result || []; // Ottieni i risultati o un array vuoto
-            console.log('Campagne caricate da IndexedDB:', dbData.campaigns);
-            resolve(dbData.campaigns);
-        };
-    });
-}
+    // Path per le campagne dell'utente loggato: users/UID_UTENTE/campaigns
+    const userCampaignsRef = window.firebaseFunctions.ref(window.database, `users/${currentUser.uid}/campaigns`);
 
-async function saveCampaignsToDb(campaignsArray) {
-    await openDb(); // Assicura che il DB sia aperto
+    // Utilizziamo onValue per ottenere aggiornamenti in tempo reale
+    // Questa funzione verrà chiamata ogni volta che i dati cambiano in Firebase
+    window.firebaseFunctions.onValue(userCampaignsRef, (snapshot) => {
+        const campaignsData = snapshot.val(); // Ottieni i dati come oggetto
+        dbData.campaigns = []; // Pulisci i dati locali
 
-    // Per semplicità, cancelliamo tutto e reinseriamo.
-    // In un'applicazione reale potresti fare operazioni più mirate (add, put, delete).
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction([STORE_NAME], 'readwrite');
-        const objectStore = transaction.objectStore(STORE_NAME);
-
-        // Pulisci lo store
-        const clearRequest = objectStore.clear();
-        clearRequest.onerror = event => {
-            console.error('Errore nella pulizia dello store:', event.target.error);
-            reject(event.target.error);
-        };
-        clearRequest.onsuccess = () => {
-            // Reinserisci tutte le campagne
-            let putPromises = [];
-            campaignsArray.forEach(campaign => {
-                const putRequest = objectStore.put(campaign); // put() aggiorna o aggiunge
-                putPromises.push(new Promise((res, rej) => {
-                    putRequest.onsuccess = () => res();
-                    putRequest.onerror = () => rej(putRequest.error);
-                }));
+        if (campaignsData) {
+            // Firebase RTDB restituisce un oggetto. Lo convertiamo in array,
+            // assegnando l'ID di Firebase come 'id' della campagna.
+            Object.keys(campaignsData).forEach(key => {
+                dbData.campaigns.push({ id: key, ...campaignsData[key] });
             });
-
-            Promise.all(putPromises)
-                .then(() => {
-                    console.log('Tutte le campagne salvate in IndexedDB.');
-                    resolve();
-                })
-                .catch(error => {
-                    console.error('Errore nel salvataggio di una campagna:', error);
-                    reject(error);
-                });
-        };
-
-        transaction.onerror = (event) => {
-            console.error('Errore nella transazione di salvataggio:', event.target.error);
-            reject(event.target.error);
-        };
-        transaction.oncomplete = () => {
-            // console.log('Transazione di salvataggio completata.');
-        };
+        }
+        console.log('Campagne caricate da Firebase RTDB:', dbData.campaigns);
+        renderCampaignList(); // Aggiorna la UI con i nuovi dati
+    }, (error) => {
+        console.error("Errore nel caricamento delle campagne da Firebase RTDB:", error);
+        campaignList.innerHTML = '<p>Errore nel caricamento delle campagne.</p>';
     });
 }
 
-// --- Funzioni di gestione UI ---
+// Sostituisce la vecchia saveCampaignsToDb (ora usa Firebase)
+async function saveCampaignToDbFirebase(campaign) {
+    if (!currentUser) {
+        alert("Devi essere loggato per salvare le campagne!");
+        return;
+    }
 
-async function loadTheCampaignsUI() {
-    await loadCampaignsFromDb(); // Carica i dati da IndexedDB
+    const userCampaignsRef = window.firebaseFunctions.ref(window.database, `users/${currentUser.uid}/campaigns`);
 
+    if (campaign.id) {
+        // Se la campagna ha già un ID, aggiornala
+        const campaignRef = window.firebaseFunctions.ref(window.database, `users/${currentUser.uid}/campaigns/${campaign.id}`);
+        await window.firebaseFunctions.set(campaignRef, { name: campaign.name });
+        console.log('Campagna aggiornata su Firebase RTDB:', campaign);
+    } else {
+        // Se non ha un ID, è una nuova campagna, pushala e Firebase genererà un ID
+        const newCampaignRef = window.firebaseFunctions.push(userCampaignsRef);
+        await window.firebaseFunctions.set(newCampaignRef, { name: campaign.name });
+        console.log('Nuova campagna aggiunta su Firebase RTDB:', { id: newCampaignRef.key, name: campaign.name });
+    }
+}
+
+// Funzione per eliminare una campagna da Firebase
+async function deleteCampaignFromDbFirebase(campaignId) {
+    if (!currentUser) {
+        alert("Devi essere loggato per eliminare le campagne!");
+        return;
+    }
+    const campaignRef = window.firebaseFunctions.ref(window.database, `users/${currentUser.uid}/campaigns/${campaignId}`);
+    await window.firebaseFunctions.remove(campaignRef);
+    console.log('Campagna eliminata da Firebase RTDB:', campaignId);
+    // onValue si occuperà di ri-renderizzare la lista
+}
+
+
+// --- Funzioni di gestione UI (modificate per Firebase) ---
+
+function renderCampaignList() {
     if (campaignList) {
         campaignList.innerHTML = ''; // Pulisci la lista esistente
 
@@ -131,8 +169,34 @@ async function loadTheCampaignsUI() {
             dbData.campaigns.forEach(campaign => {
                 const campaignElement = document.createElement('div');
                 campaignElement.classList.add('campaign-item');
-                campaignElement.textContent = campaign.name; // Mostra il nome della campagna
+                campaignElement.innerHTML = `
+                    <span>${campaign.name}</span>
+                    <button class="edit-campaign" data-id="${campaign.id}">Modifica</button>
+                    <button class="delete-campaign" data-id="${campaign.id}">Elimina</button>
+                `;
                 campaignList.appendChild(campaignElement);
+            });
+            // Aggiungi listener per i nuovi bottoni "Modifica" ed "Elimina"
+            document.querySelectorAll('.edit-campaign').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const campaignId = event.target.dataset.id;
+                    const campaign = dbData.campaigns.find(c => c.id === campaignId);
+                    if (campaign) {
+                        const newName = prompt('Inserisci il nuovo nome per la campagna:', campaign.name);
+                        if (newName && newName.trim() !== '' && newName !== campaign.name) {
+                            campaign.name = newName.trim();
+                            saveCampaignToDbFirebase(campaign); // Salva la modifica su Firebase
+                        }
+                    }
+                });
+            });
+            document.querySelectorAll('.delete-campaign').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const campaignId = event.target.dataset.id;
+                    if (confirm('Sei sicuro di voler eliminare questa campagna?')) {
+                        deleteCampaignFromDbFirebase(campaignId); // Elimina da Firebase
+                    }
+                });
             });
         }
     } else {
@@ -140,7 +204,14 @@ async function loadTheCampaignsUI() {
     }
 }
 
-// --- Event Listeners ---
+// --- Funzione Principale di Caricamento UI (punto di ingresso per i dati) ---
+// Questa funzione ora si limita a chiamare la funzione di caricamento da Firebase.
+async function loadTheCampaignsUI() {
+    await loadCampaignsFromDbFirebase();
+}
+
+
+// --- Event Listeners Esistenti (adattati per Firebase) ---
 
 addNewCampaignButton.addEventListener('click', () => {
     newCampaignDiv.style.display = 'block';
@@ -155,36 +226,110 @@ cancelButtonNewCampaign.addEventListener('click', () => {
 saveNewCampaignButton.addEventListener('click', async () => {
     const newName = newCampaignName.value.trim();
     if (newName) {
-        // Assegna un ID solo se non esiste (utile per operazioni di put())
-        const newCampaign = { name: newName, id: Date.now() }; // autoIncrement gestirà l'ID se non specificato
-        dbData.campaigns.push(newCampaign);
-        console.log('Nuova campagna aggiunta in memoria:', dbData);
-
-        await saveCampaignsToDb(dbData.campaigns); // Salva i dati in IndexedDB
-
+        const newCampaign = { name: newName }; // L'ID sarà generato da Firebase
+        await saveCampaignToDbFirebase(newCampaign); // Salva i dati su Firebase
         newCampaignName.value = '';
         newCampaignDiv.style.display = 'none';
-        loadTheCampaignsUI(); // Aggiorna la visualizzazione
+        // Non serve chiamare loadTheCampaignsUI qui, onValue lo farà per noi.
     } else {
         alert('Il nome della campagna non può essere vuoto.');
     }
 });
-
 
 // --- Inizializzazione ---
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log("App D&D Tracker caricata.");
     newCampaignDiv.style.display = 'none';
-    campaignsDiv.style.display = 'block'; // Mostra direttamente l'area delle campagne
-    loadTheCampaignsUI(); // Carica e visualizza i dati all'avvio
+    // campaignsDiv.style.display viene gestito da onAuthStateChanged
+    // loadTheCampaignsUI() viene gestito da onAuthStateChanged
 });
 
+// --- Funzioni per Export/Import (da adattare per Firebase se necessario) ---
+// Attualmente, queste funzioni si basano su dbData.campaigns, che ora è popolato da Firebase.
+// L'esportazione funzionerà con i dati correnti.
+// L'importazione andrà a popolare dbData.campaigns e poi potresti volerli salvare su Firebase.
+// Questo è un punto da considerare per un'implementazione più completa con Firebase.
+
+const exportDbButton = document.getElementById('exportDbButton');
+const importDbButton = document.getElementById('importDbButton');
+const importFileInput = document.getElementById('importFileInput');
+
+exportDbButton.addEventListener('click', () => {
+    if (dbData.campaigns.length === 0) {
+        alert('Non ci sono campagne da esportare.');
+        return;
+    }
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dbData.campaigns, null, 2));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", "dnd_campaigns.json");
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+});
+
+importDbButton.addEventListener('click', () => {
+    importFileInput.click(); // Triggera il click sull'input file nascosto
+});
+
+importFileInput.addEventListener('change', (event) => {
+    const file = event.target.files[0];
+    if (!file) {
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        try {
+            const importedCampaigns = JSON.parse(e.target.result);
+            if (!Array.isArray(importedCampaigns)) {
+                alert('Il file non contiene un formato valido di campagne.');
+                return;
+            }
+
+            // Chiedi all'utente se vuole sovrascrivere o aggiungere
+            const confirmImport = confirm('Vuoi sovrascrivere le campagne esistenti su Firebase con quelle importate, o aggiungerle? (OK per sovrascrivere, Annulla per aggiungere)');
+
+            if (confirmImport) {
+                // Sovrascrivi: prima eliminiamo tutte le campagne esistenti su Firebase per l'utente
+                if (currentUser) {
+                    const userCampaignsRef = window.firebaseFunctions.ref(window.database, `users/${currentUser.uid}/campaigns`);
+                    await window.firebaseFunctions.remove(userCampaignsRef);
+                }
+                // Poi aggiungiamo quelle importate
+                for (const campaign of importedCampaigns) {
+                    // Rimuoviamo l'ID se presente, Firebase ne genererà uno nuovo
+                    const { id, ...campaignData } = campaign;
+                    await saveCampaignToDbFirebase(campaignData);
+                }
+                alert('Campagne importate e sovrascritte con successo su Firebase!');
+            } else {
+                // Aggiungi: semplicemente aggiungiamo le nuove campagne
+                for (const campaign of importedCampaigns) {
+                    const { id, ...campaignData } = campaign;
+                    await saveCampaignToDbFirebase(campaignData);
+                }
+                alert('Campagne importate e aggiunte con successo a Firebase!');
+            }
+
+            // La UI si aggiornerà automaticamente grazie a onValue
+            // loadTheCampaignsUI(); // Non strettamente necessario se onValue funziona
+
+        } catch (error) {
+            console.error('Errore durante l\'importazione:', error);
+            alert('Errore durante l\'importazione del file: ' + error.message);
+        }
+    };
+    reader.readAsText(file);
+});
+
+
 // Opzionale: Registra un Service Worker per funzionalità PWA complete (offline, installazione)
-// Questo va in un file separato (es. service-worker.js) e registrato qui:
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/DnD-Campaigns/service-worker.js') // Assicurati che questo percorso sia corretto
+        // Assicurati che questo percorso sia corretto
+        navigator.serviceWorker.register('/DnD-Campaigns/service-worker.js')
             .then(registration => {
                 console.log('ServiceWorker registrato con successo:', registration);
             })
